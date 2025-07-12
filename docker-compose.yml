@@ -22,10 +22,8 @@ services:
     build:
       context: .
       dockerfile: ./docker/go/Dockerfile
-    container_name: rdb2025-go1
+    container_name: go1
     hostname: go1
-    expose:
-     - 8080
     networks:
       - rdb2025
       - payment-processor
@@ -40,8 +38,8 @@ services:
           memory: "50MB"
   go2:
     <<: *go1
-    container_name: rdb2025-go2
-    hostname: go-2
+    container_name: go2
+    hostname: go2
 
   redis:
     image: redis:7-alpine

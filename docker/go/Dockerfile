@@ -17,4 +17,4 @@ COPY --from=buildrdb /rdb-app /rdb-app
 
 EXPOSE 8080
 
-CMD ["/rdb-app"]
+CMD ["./rdb-app"]
