@@ -1,0 +1,64 @@
+services:
+  nginx:
+    image: nginx:1.29-alpine-slim
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "9999:9999"
+    networks:
+      - rdb2025
+      - payment-processor
+    container_name: rdb2025-nginx
+    depends_on:
+      - go1
+      - go2
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: "20MB"
+
+  go1: &go1
+    build:
+      context: .
+      dockerfile: ./docker/go/Dockerfile
+    container_name: rdb2025-go1
+    hostname: go1
+    expose:
+     - 8080
+    networks:
+      - rdb2025
+      - payment-processor
+    environment:
+     - REDIS_URL=redis:6379
+    depends_on:
+     - redis
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: "50MB"
+  go2:
+    <<: *go1
+    container_name: rdb2025-go2
+    hostname: go-2
+
+  redis:
+    image: redis:7-alpine
+    container_name: rdb2025-redis
+    command: redis-server --appendonly no --maxclients 20000
+    networks:
+      - rdb2025
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: "230MB"
+
+networks:
+  payment-processor:
+    name: payment-processor
+    external: true
+  rdb2025:
+    driver: bridge
+
