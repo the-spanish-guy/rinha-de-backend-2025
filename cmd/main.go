@@ -3,18 +3,14 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"rinha-de-backend-2025/endpoints"
 )
 
 func main() {
 	fmt.Println("Teste")
 	server := http.NewServeMux()
-	server.HandleFunc("POST /payments", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("deu bom")
-		w.WriteHeader(http.StatusAccepted)
-	})
+	server.HandleFunc("POST /payments", endpoints.PaymentHandler)
+	server.HandleFunc("POST /payments-summary", endpoints.PaymentSummaryHandler)
 
 	http.ListenAndServe("localhost:8080", server)
-
-	fmt.Print("alo")
-
 }
