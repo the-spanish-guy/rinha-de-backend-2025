@@ -13,7 +13,7 @@ var Ctx = context.Background()
 
 func StartDB() error {
 	urlconn := os.Getenv("REDIS_URL")
-	DB := redis.NewClient(&redis.Options{
+	DB = redis.NewClient(&redis.Options{
 		Addr: urlconn,
 	})
 
