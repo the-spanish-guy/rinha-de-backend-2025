@@ -51,9 +51,54 @@ func PaymentHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("deu bom")
+	var from, to *time.Time
+
+	if fromStr := r.URL.Query().Get("from"); fromStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, fromStr); err == nil {
+			from = &parsed
+		}
+	}
+
+	if toStr := r.URL.Query().Get("to"); toStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, toStr); err == nil {
+			to = &parsed
+		}
+	}
+
+	var min, max string
+
+	if from != nil && to != nil {
+		min = fmt.Sprintf("%d", from.Unix())
+		max = fmt.Sprintf("%d", to.Unix())
+	} else {
+		min = "-inf"
+		max = "+inf"
+	}
+
+	result, err := db.DB.ZRangeByScore(db.Ctx, "rinha-payments", &redis.ZRangeBy{
+		Min: min,
+		Max: max,
+	}).Result()
+	if err != nil {
+		http.Error(w, "Error when trying read data", http.StatusBadRequest)
+	}
+
+	var totalRequests int = 0
+	var totalAmount int
+	for _, eventStr := range result {
+		var event types.Payments
+		if err := json.Unmarshal([]byte(eventStr), &event); err != nil {
+			continue
+		}
+		totalRequests++
+		totalAmount += int(event.Amount)
+	}
 	w.WriteHeader(http.StatusAccepted)
-	// w.Write(resp)
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"totalRequests": totalRequests,
+		"totalAmount":   totalAmount,
+	})
 }
 
 func healthcheck() string {
