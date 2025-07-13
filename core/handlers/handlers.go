@@ -37,6 +37,15 @@ func PaymentHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error when trying read response body", http.StatusBadRequest)
 	}
 
+	requestedAt := time.Now().Unix()
+	err = db.DB.ZAdd(db.Ctx, "rinha-payments", redis.Z{
+		Member: string(readBody),
+		Score:  float64(requestedAt),
+	}).Err()
+	if err != nil {
+		fmt.Println("Error on redis insert: %w", err)
+	}
+
 	w.WriteHeader(http.StatusAccepted)
 	w.Write(formattedResponse)
 }
