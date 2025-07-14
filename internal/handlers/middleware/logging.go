@@ -19,8 +19,9 @@ func Logging(logger *config.Logger) func(http.Handler) http.Handler {
 			wrapper := &responseWriter{ResponseWriter: w, statusCode: 200}
 
 			next.ServeHTTP(wrapper, r)
+
 			duration := time.Since(start)
-			logger.Infof("\n\nmethod: %s\n path: %s\n queryparams %s\n statusCode: %d\n duration(ms): %v",
+			logger.Infof("method: %s path: %s queryparams %s statusCode: %d duration(ms): %v",
 				r.Method,
 				r.URL.Path,
 				r.URL.Query(),
