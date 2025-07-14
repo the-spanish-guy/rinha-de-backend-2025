@@ -51,30 +51,6 @@ func PaymentHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(formattedResponse)
 }
 
-func PaymentDetailsHandler(w http.ResponseWriter, r *http.Request) {
-	HOST := healthcheck()
-
-	id := r.URL.Path[len("/payments/"):]
-	fmt.Println(w, "Employee ID: %s", id)
-
-	fmt.Print("alo")
-	res, errPayments := http.Get(HOST + "/payments/" + id)
-	if errPayments != nil {
-		fmt.Printf("Error on POST /payments %s", errPayments)
-	}
-	fmt.Print("deu ruim?")
-
-	formattedResponse, err := io.ReadAll(res.Body)
-	if err != nil {
-		http.Error(w, "Error when trying read response body", http.StatusBadRequest)
-	}
-	fmt.Println(formattedResponse)
-
-	w.WriteHeader(http.StatusAccepted)
-	w.Write(formattedResponse)
-
-}
-
 func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	var from, to *time.Time
 
