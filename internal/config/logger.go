@@ -6,10 +6,6 @@ import (
 	"os"
 )
 
-var (
-	logger *Logger
-)
-
 var Reset = "\033[0m"
 var Red = "\033[31m"
 var Green = "\033[32m"
@@ -28,21 +24,20 @@ type Logger struct {
 	writer  io.Writer
 }
 
-func NewLogger(p string) *Logger {
+func NewLogger(prefix string) *Logger {
 	writer := io.Writer(os.Stdout)
-	logger := log.New(writer, p, log.Ldate|log.Ltime)
 
 	return &Logger{
-		err:     log.New(writer, Red+"ERROR: ", logger.Flags()),
-		debug:   log.New(writer, Cyan+"DEBUG: ", logger.Flags()),
-		info:    log.New(writer, Reset+"INFO: ", logger.Flags()),
-		warning: log.New(writer, Yellow+"WARNING: ", logger.Flags()),
+		err:     log.New(writer, Red+"[ERROR] "+prefix+": ", log.Ldate|log.Ltime),
+		debug:   log.New(writer, Cyan+"[DEBUG] "+prefix+": ", log.Ldate|log.Ltime),
+		info:    log.New(writer, Reset+"[INFO] "+prefix+": ", log.Ldate|log.Ltime),
+		warning: log.New(writer, Yellow+"[WARNING] "+prefix+": ", log.Ldate|log.Ltime),
 		writer:  writer,
 	}
 }
 
-func GetLogger(p string) *Logger {
-	return NewLogger(p)
+func GetLogger(prefix string) *Logger {
+	return NewLogger(prefix)
 }
 
 func (l *Logger) Debug(v ...interface{}) {
@@ -75,4 +70,14 @@ func (l *Logger) Errorf(f string, v ...interface{}) {
 
 func (l *Logger) Warningf(f string, v ...interface{}) {
 	l.warning.Printf(f, v...)
+}
+
+func (l *Logger) Fatal(v ...interface{}) {
+	l.err.Println(v...)
+	os.Exit(1)
+}
+
+func (l *Logger) Fatalf(format string, v ...interface{}) {
+	l.err.Printf(format, v...)
+	os.Exit(1)
 }

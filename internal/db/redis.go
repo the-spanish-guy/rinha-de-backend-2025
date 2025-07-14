@@ -2,28 +2,32 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"os"
+	"rinha-de-backend-2025/internal/config"
 
 	"github.com/redis/go-redis/v9"
 )
 
 var (
-	DB  *redis.Client
-	Ctx = context.Background()
+	DB       *redis.Client
+	Ctx      = context.Background()
+	dbLogger = config.GetLogger("database")
 )
 
 func StartDB() error {
-	urlconn := os.Getenv("REDIS_URLAS")
+	dbLogger.Info("Initialize connection DB")
+
+	urlconn := os.Getenv("REDIS_URL")
 	DB = redis.NewClient(&redis.Options{
 		Addr: urlconn,
 	})
 
 	_, err := DB.Ping(Ctx).Result()
 	if err != nil {
-		return fmt.Errorf("failed to connect to Redis: %v", err)
+		dbLogger.Fatalf("failed to connect to Redis: %v", err)
+		return err
 	}
 
-	fmt.Print("DB Connected!!!")
+	dbLogger.Info("DB Connected!!!")
 	return nil
 }

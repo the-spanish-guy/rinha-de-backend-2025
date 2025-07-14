@@ -2,15 +2,23 @@ package main
 
 import (
 	"net/http"
-	"rinha-de-backend-2025/core/db"
-	"rinha-de-backend-2025/core/handlers"
+	"rinha-de-backend-2025/internal/config"
+	"rinha-de-backend-2025/internal/db"
+	"rinha-de-backend-2025/internal/router"
 )
 
 func main() {
-	db.StartDB()
-	server := http.NewServeMux()
-	server.HandleFunc("POST /payments", handlers.PaymentHandler)
-	server.HandleFunc("GET /payments-summary", handlers.PaymentSummaryHandler)
+	logger := config.GetLogger("main")
 
-	http.ListenAndServe("0.0.0.0:8080", server)
+	logger.Info("Starting project")
+
+	db.StartDB()
+	handler := router.SetupRoutes(logger)
+	server := http.Server{
+		Addr:    "0.0.0.0:8080",
+		Handler: handler,
+	}
+
+	logger.Infof("API listening at %s", server.Addr)
+	server.ListenAndServe()
 }

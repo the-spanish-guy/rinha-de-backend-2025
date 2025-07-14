@@ -7,12 +7,15 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"rinha-de-backend-2025/internal/config"
 	"rinha-de-backend-2025/internal/db"
 	"rinha-de-backend-2025/internal/types"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
+
+var logger = config.GetLogger("handler")
 
 func PaymentHandler(w http.ResponseWriter, r *http.Request) {
 	HOST := healthcheck()
@@ -29,7 +32,8 @@ func PaymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	res, errPayments := http.Post(HOST+"/payments", "application/json", bytes.NewReader(readBody))
 	if errPayments != nil {
-		fmt.Printf("Error on POST /payments %s", errPayments)
+		logger.Errorf("Error on POST /payments %s", errPayments)
+		// TODO: implementar retry
 	}
 
 	formattedResponse, err := io.ReadAll(res.Body)
@@ -44,7 +48,7 @@ func PaymentHandler(w http.ResponseWriter, r *http.Request) {
 		Score:  float64(requestedAt.Unix()),
 	}).Err()
 	if err != nil {
-		fmt.Println("Error on redis insert: %w", err)
+		logger.Errorf("Error on redis insert: %w", err)
 	}
 
 	w.WriteHeader(http.StatusAccepted)
@@ -107,13 +111,13 @@ func healthcheck() string {
 	DEFAULT_HOST := os.Getenv("PROCESSOR_DEFAULT_URL")
 	resp, err := http.Get(DEFAULT_HOST + "/payments/service-health")
 	if err != nil {
-		fmt.Printf("error %v \n", err)
+		logger.Errorf("error service-health %v \n", err)
 	}
 
 	bodyHealth, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("error %v \n", err)
+		logger.Errorf("error %v \n", err)
 	}
-	fmt.Printf("resp %s", bodyHealth)
+	logger.Errorf("resp %s", bodyHealth)
 	return DEFAULT_HOST
 }
