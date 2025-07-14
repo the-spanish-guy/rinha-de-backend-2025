@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"rinha-de-backend-2025/core/db"
-	"rinha-de-backend-2025/core/types"
+	"rinha-de-backend-2025/internal/db"
+	"rinha-de-backend-2025/internal/types"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -37,10 +37,11 @@ func PaymentHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error when trying read response body", http.StatusBadRequest)
 	}
 
-	requestedAt := time.Now().Unix()
+	// requestedAt := time.Now().Unix()
+	requestedAt, _ := time.Parse(time.RFC3339, "2025-07-16T14:20:00Z")
 	err = db.DB.ZAdd(db.Ctx, "rinha-payments", redis.Z{
 		Member: string(readBody),
-		Score:  float64(requestedAt),
+		Score:  float64(requestedAt.Unix()),
 	}).Err()
 	if err != nil {
 		fmt.Println("Error on redis insert: %w", err)
@@ -48,6 +49,30 @@ func PaymentHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusAccepted)
 	w.Write(formattedResponse)
+}
+
+func PaymentDetailsHandler(w http.ResponseWriter, r *http.Request) {
+	HOST := healthcheck()
+
+	id := r.URL.Path[len("/payments/"):]
+	fmt.Println(w, "Employee ID: %s", id)
+
+	fmt.Print("alo")
+	res, errPayments := http.Get(HOST + "/payments/" + id)
+	if errPayments != nil {
+		fmt.Printf("Error on POST /payments %s", errPayments)
+	}
+	fmt.Print("deu ruim?")
+
+	formattedResponse, err := io.ReadAll(res.Body)
+	if err != nil {
+		http.Error(w, "Error when trying read response body", http.StatusBadRequest)
+	}
+	fmt.Println(formattedResponse)
+
+	w.WriteHeader(http.StatusAccepted)
+	w.Write(formattedResponse)
+
 }
 
 func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
