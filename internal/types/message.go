@@ -23,6 +23,12 @@ func (m *Message) ToJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
+func MessageFromJSON(data []byte) (*Message, error) {
+	var msg Message
+	err := json.Unmarshal(data, &msg)
+	return &msg, err
+}
+
 // talvez mudar isso para um uuid?
 func randomId() string {
 	// format -> ano-mes-dia-hora-minuto-segundos : sem o hífen
