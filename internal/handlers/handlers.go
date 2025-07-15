@@ -9,6 +9,7 @@ import (
 	"os"
 	"rinha-de-backend-2025/internal/config"
 	"rinha-de-backend-2025/internal/db"
+	"rinha-de-backend-2025/internal/messaging/nats"
 	"rinha-de-backend-2025/internal/types"
 	"time"
 
@@ -17,17 +18,22 @@ import (
 
 var logger = config.GetLogger("handler")
 
-func PaymentHandler(w http.ResponseWriter, r *http.Request) {
+type Handler struct {
+	publisher *nats.Publisher
+}
+
+func HandleHandler(p *nats.Publisher) *Handler {
+	return &Handler{
+		publisher: p,
+	}
+}
+
+func (h *Handler) PaymentHandler(w http.ResponseWriter, r *http.Request) {
 	HOST := healthcheck()
 
 	readBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Error when trying read Body", http.StatusBadRequest)
-	}
-
-	var paymentRequest types.Payments
-	if err := json.Unmarshal(readBody, &paymentRequest); err != nil {
-		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 	}
 
 	res, errPayments := http.Post(HOST+"/payments", "application/json", bytes.NewReader(readBody))
@@ -42,13 +48,51 @@ func PaymentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// requestedAt := time.Now().Unix()
+	// TODO: remover o set do redis
 	requestedAt, _ := time.Parse(time.RFC3339, "2025-07-16T14:20:00Z")
 	err = db.DB.ZAdd(db.Ctx, "rinha-payments", redis.Z{
 		Member: string(readBody),
 		Score:  float64(requestedAt.Unix()),
 	}).Err()
 	if err != nil {
-		logger.Errorf("Error on redis insert: %w", err)
+		logger.Errorf("Error on redis insert: %v", err)
+	}
+
+	var paymentRequest types.Payments
+	if err := json.Unmarshal(readBody, &paymentRequest); err != nil {
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+	}
+
+	body := types.Payments{
+		CorrelationId: paymentRequest.CorrelationId,
+		Amount:        paymentRequest.Amount,
+	}
+
+	msg, err := json.Marshal(body)
+	if err != nil {
+		// se a mensagem não foi publicada paciência.
+		logger.Errorf("Invalid JSON format: %v", err)
+	}
+
+	h.publisher.PublishMessage(types.NewMessage(string(msg)))
+
+	w.WriteHeader(http.StatusAccepted)
+	w.Write(formattedResponse)
+}
+
+func PaymentDetailsHandler(w http.ResponseWriter, r *http.Request) {
+	HOST := healthcheck()
+
+	id := r.URL.Path[len("/payments/"):]
+
+	res, errPayments := http.Get(HOST + "/payments/" + id)
+	if errPayments != nil {
+		fmt.Printf("Error on POST /payments %s", errPayments)
+	}
+
+	formattedResponse, err := io.ReadAll(res.Body)
+	if err != nil {
+		http.Error(w, "Error when trying read response body", http.StatusBadRequest)
 	}
 
 	w.WriteHeader(http.StatusAccepted)
@@ -118,6 +162,6 @@ func healthcheck() string {
 	if err != nil {
 		logger.Errorf("error %v \n", err)
 	}
-	logger.Errorf("resp %s", bodyHealth)
+	logger.Infof("resp %s", bodyHealth)
 	return DEFAULT_HOST
 }

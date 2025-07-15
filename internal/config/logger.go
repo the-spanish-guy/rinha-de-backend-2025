@@ -29,8 +29,8 @@ func NewLogger(prefix string) *Logger {
 
 	return &Logger{
 		err:     log.New(writer, Red+"[ERROR] "+prefix+": ", log.Ldate|log.Ltime),
+		info:    log.New(writer, Gray+"[INFO] "+prefix+": ", log.Ldate|log.Ltime),
 		debug:   log.New(writer, Cyan+"[DEBUG] "+prefix+": ", log.Ldate|log.Ltime),
-		info:    log.New(writer, Reset+"[INFO] "+prefix+": ", log.Ldate|log.Ltime),
 		warning: log.New(writer, Yellow+"[WARNING] "+prefix+": ", log.Ldate|log.Ltime),
 		writer:  writer,
 	}
