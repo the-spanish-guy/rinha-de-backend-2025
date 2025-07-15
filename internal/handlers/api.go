@@ -80,6 +80,7 @@ func (h *Handler) PaymentHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(formattedResponse)
 }
 
+// este endpoint é só pra testes
 func PaymentDetailsHandler(w http.ResponseWriter, r *http.Request) {
 	HOST := healthcheck()
 
