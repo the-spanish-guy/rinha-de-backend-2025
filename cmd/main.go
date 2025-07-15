@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"rinha-de-backend-2025/internal/config"
 	"rinha-de-backend-2025/internal/db"
-	"rinha-de-backend-2025/internal/messaging/nats"
+	"rinha-de-backend-2025/internal/messaging"
 	"rinha-de-backend-2025/internal/router"
 )
 
@@ -14,30 +14,14 @@ func main() {
 	logger.Info("Starting project")
 	db.StartDB()
 
-	// start nats server
-	ns := nats.NewServer(logger)
-	if err := ns.Start(); err != nil {
-		logger.Fatal("An error occurred when NATS server starting", err.Error())
-	}
+	pub, sub := messaging.SetupMessaging()
+	// Esse sub.Subscribe() talvez pudesse um método dentro da pasta de handlers
+	sub.Subscribe()
 
-	// create subscribe
-	sub := nats.NewSubscriber()
-	// connect sub to nats server
-	if err := sub.Connect(); err != nil {
-		logger.Fatal("An error occurred when create subscriber server", err.Error())
-	}
-
-	//create publisher
-	pub := nats.NewPublisher()
-	// connect pub to nats server
-	if err := pub.Connect(); err != nil {
-		logger.Fatal("An error occurred when create publisher server", err.Error())
-	}
-
-	handler := router.SetupRoutes(logger, pub)
+	routes := router.SetupRoutes(logger, pub)
 	server := http.Server{
 		Addr:    "0.0.0.0:8080",
-		Handler: handler,
+		Handler: routes,
 	}
 
 	logger.Infof("API listening at %s", server.Addr)
