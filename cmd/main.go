@@ -9,10 +9,17 @@ import (
 )
 
 func main() {
-	logger := config.GetLogger("main")
+	logger := config.GetLogger("[MAIN]")
 
 	logger.Info("Starting project")
-	db.StartDB()
+
+	if err := db.StartDB(); err != nil {
+		logger.Fatalf("Failed to start Redis: %v", err)
+	}
+
+	if err := db.StartPG(); err != nil {
+		logger.Fatalf("Failed to start PostgreSQL: %v", err)
+	}
 
 	pub, sub := messaging.SetupMessaging()
 	// Esse sub.Subscribe() talvez pudesse um método dentro da pasta de handlers
