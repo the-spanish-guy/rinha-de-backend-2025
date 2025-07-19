@@ -5,7 +5,7 @@ type HealtchCheckResponse struct {
 	MinResponseTime int  `json:"minResponseTime"`
 }
 
-type Payments struct {
+type PaymentsRequest struct {
 	CorrelationId string  `json:"correlationId"`
 	Amount        float64 `json:"amount"`
 }
