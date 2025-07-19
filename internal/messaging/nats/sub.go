@@ -1,7 +1,10 @@
 package nats
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"rinha-de-backend-2025/internal/db"
 	"rinha-de-backend-2025/internal/types"
 
 	"github.com/nats-io/nats.go"
@@ -52,7 +55,40 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 	}
 
 	logger.Infof("Mensagem recebida: %s", message.Content)
+	// parse the message to a struct
+	payment := types.PaymentsRequest{}
+	err = json.Unmarshal([]byte(message.Content), &payment)
+	if err != nil {
+		logger.Errorf("Falha ao deserializar mensagem: %v", err)
+		return
+	}
+
+	logger.Debug("format data to save on db")
+
+	paymentDB := types.Payments{
+		CorrelationId: payment.CorrelationId,
+		Amount:        payment.Amount,
+		Status:        "pending",
+	}
+
+	logger.Debugf("paymentDB: %v", paymentDB)
 
 	// processar a mensagem
 	// criar um /service/process-payments ? para lidar com a regra de negocio
+	pgdb := db.GetDB()
+	if pgdb == nil {
+		logger.Error("Database connection is nil")
+		return
+	}
+
+	_, err = pgdb.Exec(context.Background(),
+		"INSERT INTO payments (correlation_id, amount, status) VALUES ($1, $2, $3)",
+		paymentDB.CorrelationId, paymentDB.Amount, paymentDB.Status)
+
+	if err != nil {
+		logger.Errorf("Falha ao inserir payment no banco: %v", err)
+		return
+	}
+
+	logger.Info("Payment salvo com sucesso no banco de dados")
 }

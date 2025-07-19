@@ -58,12 +58,12 @@ func (h *Handler) PaymentHandler(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("Error on redis insert: %v", err)
 	}
 
-	var paymentRequest types.Payments
+	var paymentRequest types.PaymentsRequest
 	if err := json.Unmarshal(readBody, &paymentRequest); err != nil {
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 	}
 
-	body := types.Payments{
+	body := types.PaymentsRequest{
 		CorrelationId: paymentRequest.CorrelationId,
 		Amount:        paymentRequest.Amount,
 	}
@@ -136,7 +136,7 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	var totalRequests int = 0
 	var totalAmount int
 	for _, eventStr := range result {
-		var event types.Payments
+		var event types.PaymentsRequest
 		if err := json.Unmarshal([]byte(eventStr), &event); err != nil {
 			continue
 		}
