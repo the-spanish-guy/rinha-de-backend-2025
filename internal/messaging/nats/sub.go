@@ -1,11 +1,15 @@
 package nats
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
 	"rinha-de-backend-2025/internal/db"
 	"rinha-de-backend-2025/internal/types"
+	"time"
 
 	"github.com/nats-io/nats.go"
 )
@@ -48,14 +52,16 @@ func (s *Subscriber) Subscribe() error {
 }
 
 func (s *Subscriber) handleMessage(msg *nats.Msg) {
+	logger.Info("Receive message")
 	message, err := types.MessageFromJSON(msg.Data)
 	if err != nil {
 		logger.Errorf("Falha ao deserializar mensagem: %v", err)
 		return
 	}
+	logger.Infof("Formatted message: %s", message.Content)
 
-	logger.Infof("Mensagem recebida: %s", message.Content)
-	// parse the message to a struct
+	DEFAULT_HOST := os.Getenv("PROCESSOR_DEFAULT_URL")
+
 	payment := types.PaymentsRequest{}
 	err = json.Unmarshal([]byte(message.Content), &payment)
 	if err != nil {
@@ -63,18 +69,23 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 		return
 	}
 
-	logger.Debug("format data to save on db")
+	payment.RequestedAt = time.Now()
+
+	request, _ := json.Marshal(payment)
+	_, errPayments := http.Post(DEFAULT_HOST+"/payments", "application/json", bytes.NewBuffer(request))
+	if errPayments != nil {
+		logger.Errorf("Error on POST /payments %s", errPayments)
+		// TODO: implementar retry
+	}
 
 	paymentDB := types.Payments{
 		CorrelationId: payment.CorrelationId,
 		Amount:        payment.Amount,
-		Status:        "pending",
+		RequestedAt:   payment.RequestedAt,
+		Status:        "PENDING",
+		Processor:     "DEFAULT",
 	}
 
-	logger.Debugf("paymentDB: %v", paymentDB)
-
-	// processar a mensagem
-	// criar um /service/process-payments ? para lidar com a regra de negocio
 	pgdb := db.GetDB()
 	if pgdb == nil {
 		logger.Error("Database connection is nil")
@@ -82,8 +93,8 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 	}
 
 	_, err = pgdb.Exec(context.Background(),
-		"INSERT INTO payments (correlation_id, amount, status) VALUES ($1, $2, $3)",
-		paymentDB.CorrelationId, paymentDB.Amount, paymentDB.Status)
+		"INSERT INTO payments (correlation_id, amount, status, processor, requested_at) VALUES ($1, $2, $3, $4, $5)",
+		paymentDB.CorrelationId, paymentDB.Amount, paymentDB.Status, paymentDB.Processor, paymentDB.RequestedAt)
 
 	if err != nil {
 		logger.Errorf("Falha ao inserir payment no banco: %v", err)

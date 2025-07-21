@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -29,55 +28,14 @@ func HandleHandler(p *nats.Publisher) *Handler {
 }
 
 func (h *Handler) PaymentHandler(w http.ResponseWriter, r *http.Request) {
-	HOST := healthcheck()
-
 	readBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Error when trying read Body", http.StatusBadRequest)
 	}
 
-	res, errPayments := http.Post(HOST+"/payments", "application/json", bytes.NewReader(readBody))
-	if errPayments != nil {
-		logger.Errorf("Error on POST /payments %s", errPayments)
-		// TODO: implementar retry
-	}
-
-	formattedResponse, err := io.ReadAll(res.Body)
-	if err != nil {
-		http.Error(w, "Error when trying read response body", http.StatusBadRequest)
-	}
-
-	// requestedAt := time.Now().Unix()
-	// TODO: remover o set do redis
-	requestedAt, _ := time.Parse(time.RFC3339, "2025-07-16T14:20:00Z")
-	err = db.DB.ZAdd(db.Ctx, "rinha-payments", redis.Z{
-		Member: string(readBody),
-		Score:  float64(requestedAt.Unix()),
-	}).Err()
-	if err != nil {
-		logger.Errorf("Error on redis insert: %v", err)
-	}
-
-	var paymentRequest types.PaymentsRequest
-	if err := json.Unmarshal(readBody, &paymentRequest); err != nil {
-		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
-	}
-
-	body := types.PaymentsRequest{
-		CorrelationId: paymentRequest.CorrelationId,
-		Amount:        paymentRequest.Amount,
-	}
-
-	msg, err := json.Marshal(body)
-	if err != nil {
-		// se a mensagem não foi publicada paciência.
-		logger.Errorf("Invalid JSON format: %v", err)
-	}
-
-	h.publisher.PublishMessage(types.NewMessage(string(msg)))
+	h.publisher.PublishMessage(types.NewMessage(string(readBody)))
 
 	w.WriteHeader(http.StatusAccepted)
-	w.Write(formattedResponse)
 }
 
 // este endpoint é só pra testes
