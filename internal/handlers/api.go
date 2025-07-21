@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,11 +9,10 @@ import (
 	"os"
 	"rinha-de-backend-2025/internal/config"
 	"rinha-de-backend-2025/internal/db"
+	"rinha-de-backend-2025/internal/helpers"
 	"rinha-de-backend-2025/internal/messaging/nats"
 	"rinha-de-backend-2025/internal/types"
 	"time"
-
-	"github.com/redis/go-redis/v9"
 )
 
 var logger = config.GetLogger("handler")
@@ -60,53 +60,95 @@ func PaymentDetailsHandler(w http.ResponseWriter, r *http.Request) {
 
 func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	var from, to *time.Time
+	var query string
+	var args []interface{}
+	ctx := context.Background()
 
 	if fromStr := r.URL.Query().Get("from"); fromStr != "" {
-		if parsed, err := time.Parse(time.RFC3339, fromStr); err == nil {
+		if parsed, err := helpers.ParseFlexibleDateTime(fromStr); err == nil {
 			from = &parsed
 		}
 	}
 
 	if toStr := r.URL.Query().Get("to"); toStr != "" {
-		if parsed, err := time.Parse(time.RFC3339, toStr); err == nil {
+		if parsed, err := helpers.ParseFlexibleDateTime(toStr); err == nil {
 			to = &parsed
 		}
 	}
 
-	var min, max string
+	baseQuery := `
+		select
+			p.processor,
+			count(1) as total_request,
+			sum(p.amount) as total_amount
+		from
+			payments p
+		`
 
 	if from != nil && to != nil {
-		min = fmt.Sprintf("%d", from.Unix())
-		max = fmt.Sprintf("%d", to.Unix())
+		query = baseQuery + `
+			WHERE
+				p.requested_at between $1 and $2
+		`
+		args = []interface{}{*from, *to}
 	} else {
-		min = "-inf"
-		max = "+inf"
+		query = baseQuery
 	}
 
-	result, err := db.DB.ZRangeByScore(db.Ctx, "rinha-payments", &redis.ZRangeBy{
-		Min: min,
-		Max: max,
-	}).Result()
+	query += `
+		GROUP BY
+			p.processor
+		ORDER BY
+			p.processor
+	`
+
+	logger.Debugf("Query: %v", query)
+	logger.Debugf("Args: %v", args)
+
+	rows, err := db.PGDB.Query(ctx, query, args...)
+
 	if err != nil {
-		http.Error(w, "Error when trying read data", http.StatusBadRequest)
+		logger.Errorf("query execution failed: %w", err)
+		http.Error(w, "query execution failed", http.StatusBadRequest)
 	}
+	defer rows.Close()
 
-	var totalRequests int = 0
-	var totalAmount int
-	for _, eventStr := range result {
-		var event types.PaymentsRequest
-		if err := json.Unmarshal([]byte(eventStr), &event); err != nil {
-			continue
+	response := types.PaymentsSummaryResponse{
+		Default: types.SummaryResponse{
+			TotalRequest: "0",
+			TotalAmount:  "0.00",
+		},
+		Fallback: types.SummaryResponse{
+			TotalRequest: "0",
+			TotalAmount:  "0.00",
+		},
+	}
+	for rows.Next() {
+		var processor string
+		var totalRequest int64
+		var totalAmount float64
+
+		if err := rows.Scan(&processor, &totalRequest, &totalAmount); err != nil {
+			logger.Errorf("failed to scan row: %v", err)
+			http.Error(w, "failed to process results", http.StatusInternalServerError)
+			return
 		}
-		totalRequests++
-		totalAmount += int(event.Amount)
-	}
-	w.WriteHeader(http.StatusAccepted)
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"totalRequests": totalRequests,
-		"totalAmount":   totalAmount,
-	})
+		summary := types.SummaryResponse{
+			TotalRequest: fmt.Sprintf("%d", totalRequest),
+			TotalAmount:  fmt.Sprintf("%.2f", totalAmount),
+		}
+
+		switch processor {
+		case "DEFAULT":
+			response.Default = summary
+		case "FALLBACK":
+			response.Fallback = summary
+		}
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(response)
 }
 
 func healthcheck() string {
