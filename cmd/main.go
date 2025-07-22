@@ -22,6 +22,9 @@ func main() {
 		logger.Fatalf("Failed to start PostgreSQL: %v", err)
 	}
 
+	pm := config.NewProcessorManager()
+	pm.StartHealthCheck()
+
 	pub, sub := messaging.SetupMessaging()
 	// Esse sub.Subscribe() talvez pudesse um método dentro da pasta de handlers
 	sub.Subscribe()

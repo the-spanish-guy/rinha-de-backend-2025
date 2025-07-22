@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
+	"rinha-de-backend-2025/internal/config"
 	"rinha-de-backend-2025/internal/db"
 	"rinha-de-backend-2025/internal/types"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -60,9 +61,9 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 	}
 	log.Infof("Formatted message: %s", message.Content)
 
-	// TODO: Implementar acesso ao processor manager aqui
-	// Por enquanto, usa o default
-	DEFAULT_HOST := os.Getenv("PROCESSOR_DEFAULT_URL")
+	pm := config.NewProcessorManager()
+	activeHost := pm.GetActiveProcessor()
+	processorType := getProcessorType(activeHost)
 
 	payment := types.PaymentsRequest{}
 	err = json.Unmarshal([]byte(message.Content), &payment)
@@ -74,7 +75,7 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 	payment.RequestedAt = time.Now()
 
 	request, _ := json.Marshal(payment)
-	_, errPayments := http.Post(DEFAULT_HOST+"/payments", "application/json", bytes.NewBuffer(request))
+	_, errPayments := http.Post(activeHost+"/payments", "application/json", bytes.NewBuffer(request))
 	if errPayments != nil {
 		log.Errorf("Error on POST /payments %s", errPayments)
 		// TODO: implementar retry
@@ -85,7 +86,7 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 		Amount:        payment.Amount,
 		RequestedAt:   payment.RequestedAt,
 		Status:        "PENDING",
-		Processor:     "DEFAULT",
+		Processor:     processorType,
 	}
 
 	pgdb := db.GetDB()
@@ -104,4 +105,14 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 	}
 
 	log.Info("Payment salvo com sucesso no banco de dados")
+}
+
+func getProcessorType(host string) string {
+	res := "DEFAULT"
+
+	if strings.Contains(host, "fallback") {
+		res = "FALLBACK"
+	}
+
+	return res
 }
