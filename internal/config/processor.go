@@ -12,16 +12,20 @@ import (
 var (
 	log             = logger.GetLogger("PROCESSOR")
 	processorConfig = &ProcessorConfig{
-		DefaultURL:  os.Getenv("PROCESSOR_DEFAULT_URL"),
-		FallbackURL: os.Getenv("PROCESSOR_FALLBACK_URL"),
-		Timeout:     5,
+		DefaultURL:          os.Getenv("PROCESSOR_DEFAULT_URL"),
+		FallbackURL:         os.Getenv("PROCESSOR_FALLBACK_URL"),
+		Timeout:             5,
+		HealthCheckInterval: 7,
+		CacheTTL:            7,
 	}
 )
 
 type ProcessorConfig struct {
-	DefaultURL  string
-	FallbackURL string
-	Timeout     int
+	DefaultURL          string
+	FallbackURL         string
+	Timeout             int // healthcheck timeout in seconds
+	HealthCheckInterval int // healthcheck interval in seconds
+	CacheTTL            int // cache TTL in seconds
 }
 
 type ProcessorManager struct {
@@ -42,6 +46,8 @@ func NewProcessorManager() *ProcessorManager {
 
 func (pm *ProcessorManager) GetActiveProcessor() string {
 	if cachedURL := pm.getCachedProcessor(); cachedURL != "" {
+		log.Debugf("Cached processor: %s", cachedURL)
+		pm.activeURL = cachedURL
 		return cachedURL
 	}
 
@@ -67,7 +73,7 @@ func (pm *ProcessorManager) cacheProcessor(url string) {
 		return
 	}
 
-	err := db.DB.Set(pm.ctx, "active_processor", url, 30*time.Second).Err()
+	err := db.DB.Set(pm.ctx, "active_processor", url, time.Duration(pm.config.CacheTTL)*time.Second).Err()
 	if err != nil {
 		log.Errorf("Error saving processor to cache: %v", err)
 	}
@@ -100,6 +106,7 @@ func (pm *ProcessorManager) updateActiveProcessor() {
 	}
 	pm.lastCheck = time.Now()
 	pm.cacheProcessor(pm.activeURL)
+	log.Infof("Health check END - Selected: %s", pm.activeURL)
 }
 
 func (pm *ProcessorManager) isProcessorHealthy(url string) bool {
@@ -126,8 +133,9 @@ func (pm *ProcessorManager) isProcessorHealthy(url string) bool {
 
 func (pm *ProcessorManager) StartHealthCheck() {
 	go func() {
-		ticker := time.NewTicker(10 * time.Second)
+		ticker := time.NewTicker(time.Duration(pm.config.HealthCheckInterval) * time.Second)
 		defer ticker.Stop()
+		log.Infof("Starting automatic health check loop (every %ds)", pm.config.HealthCheckInterval)
 
 		for {
 			select {
@@ -135,6 +143,7 @@ func (pm *ProcessorManager) StartHealthCheck() {
 				pm.updateActiveProcessor()
 				log.Infof("Active processor: %s", pm.activeURL)
 			case <-pm.ctx.Done():
+				log.Info("Health check loop stopped")
 				return
 			}
 		}
