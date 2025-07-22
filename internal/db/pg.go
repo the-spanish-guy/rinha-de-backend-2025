@@ -4,18 +4,18 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"rinha-de-backend-2025/internal/config"
+	"rinha-de-backend-2025/internal/logger"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
-	logger = config.GetLogger("PGSQL")
-	PGDB   *pgxpool.Pool
+	dbLogger = logger.GetLogger("[PGSQL]")
+	PGDB     *pgxpool.Pool
 )
 
 func StartPG() error {
-	logger.Info("Initialize connection PG")
+	dbLogger.Info("Initialize connection PG")
 	pgUser := os.Getenv("POSTGRES_USER")
 	pgPassword := os.Getenv("POSTGRES_PASSWORD")
 	pgHost := os.Getenv("POSTGRES_HOST")
@@ -26,13 +26,13 @@ func StartPG() error {
 
 	poolconn, err := pgxpool.New(context.Background(), DBURL)
 	if err != nil {
-		logger.Errorf("Failed to connect to PostgreSQL: %v", err)
+		dbLogger.Errorf("Failed to connect to PostgreSQL: %v", err)
 		return err
 	}
 
 	PGDB = poolconn
 
-	logger.Info("PG Connected successfully!")
+	dbLogger.Info("PG Connected successfully!")
 	return nil
 }
 

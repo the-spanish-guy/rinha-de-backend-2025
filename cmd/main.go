@@ -4,12 +4,13 @@ import (
 	"net/http"
 	"rinha-de-backend-2025/internal/config"
 	"rinha-de-backend-2025/internal/db"
+	"rinha-de-backend-2025/internal/logger"
 	"rinha-de-backend-2025/internal/messaging"
 	"rinha-de-backend-2025/internal/router"
 )
 
 func main() {
-	logger := config.GetLogger("[MAIN]")
+	logger := logger.GetLogger("[MAIN]")
 
 	logger.Info("Starting project")
 
