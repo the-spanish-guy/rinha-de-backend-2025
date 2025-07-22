@@ -10,12 +10,13 @@ import (
 	"rinha-de-backend-2025/internal/config"
 	"rinha-de-backend-2025/internal/db"
 	"rinha-de-backend-2025/internal/helpers"
+	"rinha-de-backend-2025/internal/logger"
 	"rinha-de-backend-2025/internal/messaging/nats"
 	"rinha-de-backend-2025/internal/types"
 	"time"
 )
 
-var logger = config.GetLogger("handler")
+var log = logger.GetLogger("[HANDLER]")
 
 type Handler struct {
 	publisher *nats.Publisher
@@ -102,13 +103,13 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 			p.processor
 	`
 
-	logger.Debugf("Query: %v", query)
-	logger.Debugf("Args: %v", args)
+	log.Debugf("Query: %v", query)
+	log.Debugf("Args: %v", args)
 
 	rows, err := db.PGDB.Query(ctx, query, args...)
 
 	if err != nil {
-		logger.Errorf("query execution failed: %w", err)
+		log.Errorf("query execution failed: %w", err)
 		http.Error(w, "query execution failed", http.StatusBadRequest)
 	}
 	defer rows.Close()
@@ -129,7 +130,7 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		var totalAmount float64
 
 		if err := rows.Scan(&processor, &totalRequest, &totalAmount); err != nil {
-			logger.Errorf("failed to scan row: %v", err)
+			log.Errorf("failed to scan row: %v", err)
 			http.Error(w, "failed to process results", http.StatusInternalServerError)
 			return
 		}

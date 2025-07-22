@@ -5,10 +5,11 @@ import (
 	"rinha-de-backend-2025/internal/config"
 	"rinha-de-backend-2025/internal/handlers"
 	"rinha-de-backend-2025/internal/handlers/middleware"
+	"rinha-de-backend-2025/internal/logger"
 	"rinha-de-backend-2025/internal/messaging/nats"
 )
 
-func SetupRoutes(logger *config.Logger, pub *nats.Publisher) http.Handler {
+func SetupRoutes(logger *logger.Logger, pub *nats.Publisher) http.Handler {
 	server := http.NewServeMux()
 
 	handler := handlers.HandleHandler(pub)

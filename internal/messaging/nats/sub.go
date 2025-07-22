@@ -27,11 +27,11 @@ func (s *Subscriber) Connect() error {
 	var err error
 	s.conn, err = nats.Connect(default_host)
 	if err != nil {
-		logger.Fatalf("An error occurred while trying to connect NATS: %v", err)
+		log.Fatalf("An error occurred while trying to connect NATS: %v", err)
 		return err
 	}
 
-	logger.Info("Subscriber connected to NATS")
+	log.Info("Subscriber connected to NATS")
 	return nil
 }
 
@@ -47,25 +47,27 @@ func (s *Subscriber) Subscribe() error {
 		return fmt.Errorf("falha ao se inscrever no subject: %w", err)
 	}
 
-	logger.Debugf("Inscrito no subject: %s", "pub.payments")
+	log.Debugf("Inscrito no subject: %s", "pub.payments")
 	return nil
 }
 
 func (s *Subscriber) handleMessage(msg *nats.Msg) {
-	logger.Info("Receive message")
+	log.Info("Receive message")
 	message, err := types.MessageFromJSON(msg.Data)
 	if err != nil {
-		logger.Errorf("Falha ao deserializar mensagem: %v", err)
+		log.Errorf("Falha ao deserializar mensagem: %v", err)
 		return
 	}
-	logger.Infof("Formatted message: %s", message.Content)
+	log.Infof("Formatted message: %s", message.Content)
 
+	// TODO: Implementar acesso ao processor manager aqui
+	// Por enquanto, usa o default
 	DEFAULT_HOST := os.Getenv("PROCESSOR_DEFAULT_URL")
 
 	payment := types.PaymentsRequest{}
 	err = json.Unmarshal([]byte(message.Content), &payment)
 	if err != nil {
-		logger.Errorf("Falha ao deserializar mensagem: %v", err)
+		log.Errorf("Falha ao deserializar mensagem: %v", err)
 		return
 	}
 
@@ -74,7 +76,7 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 	request, _ := json.Marshal(payment)
 	_, errPayments := http.Post(DEFAULT_HOST+"/payments", "application/json", bytes.NewBuffer(request))
 	if errPayments != nil {
-		logger.Errorf("Error on POST /payments %s", errPayments)
+		log.Errorf("Error on POST /payments %s", errPayments)
 		// TODO: implementar retry
 	}
 
@@ -88,7 +90,7 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 
 	pgdb := db.GetDB()
 	if pgdb == nil {
-		logger.Error("Database connection is nil")
+		log.Error("Database connection is nil")
 		return
 	}
 
@@ -97,9 +99,9 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 		paymentDB.CorrelationId, paymentDB.Amount, paymentDB.Status, paymentDB.Processor, paymentDB.RequestedAt)
 
 	if err != nil {
-		logger.Errorf("Falha ao inserir payment no banco: %v", err)
+		log.Errorf("Falha ao inserir payment no banco: %v", err)
 		return
 	}
 
-	logger.Info("Payment salvo com sucesso no banco de dados")
+	log.Info("Payment salvo com sucesso no banco de dados")
 }

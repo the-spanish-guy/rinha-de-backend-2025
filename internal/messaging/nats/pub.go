@@ -22,7 +22,7 @@ func (p *Publisher) Connect() error {
 		return fmt.Errorf("fAn error occurred while trying to connect NATS: %w", err)
 	}
 
-	logger.Infof("Publisher connected to NATS %s", default_host)
+	log.Infof("Publisher connected to NATS %s", default_host)
 
 	return nil
 }
@@ -30,16 +30,16 @@ func (p *Publisher) Connect() error {
 func (p *Publisher) PublishMessage(message *types.Message) error {
 	data, err := message.ToJSON()
 	if err != nil {
-		logger.Errorf("An error occurred trying parsing JSON")
+		log.Errorf("An error occurred trying parsing JSON")
 		return err
 	}
 
 	err = p.conn.Publish("pub.payments", data)
 	if err != nil {
-		logger.Errorf("Error on publish: %v", err)
+		log.Errorf("Error on publish: %v", err)
 		return err
 	}
 
-	logger.Infof("Message published: %s", message.Content)
+	log.Infof("Message published: %s", message.Content)
 	return nil
 }

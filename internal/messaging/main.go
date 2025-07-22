@@ -1,12 +1,12 @@
 package messaging
 
 import (
-	"rinha-de-backend-2025/internal/config"
+	"rinha-de-backend-2025/internal/logger"
 	"rinha-de-backend-2025/internal/messaging/nats"
 )
 
 func SetupMessaging() (pub *nats.Publisher, sub *nats.Subscriber) {
-	logger := config.GetLogger("MSG")
+	logger := logger.GetLogger("MSG")
 
 	// start nats server
 	ns := nats.NewServer(logger)

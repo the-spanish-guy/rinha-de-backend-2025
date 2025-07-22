@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"net/http"
-	"rinha-de-backend-2025/internal/config"
+	"rinha-de-backend-2025/internal/logger"
 	"time"
 )
 
@@ -11,7 +11,7 @@ type responseWriter struct {
 	statusCode int
 }
 
-func Logging(logger *config.Logger) func(http.Handler) http.Handler {
+func Logging(logger *logger.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
