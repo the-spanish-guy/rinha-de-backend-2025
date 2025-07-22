@@ -9,14 +9,15 @@ import (
 	"rinha-de-backend-2025/internal/messaging/nats"
 )
 
-func SetupRoutes(logger *logger.Logger, pub *nats.Publisher) http.Handler {
+func SetupRoutes(logger *logger.Logger, pub *nats.Publisher, processorManager *config.ProcessorManager) http.Handler {
 	server := http.NewServeMux()
 
-	handler := handlers.HandleHandler(pub)
+	handler := handlers.HandleHandler(pub, processorManager)
 
 	server.HandleFunc("POST /payments", handler.PaymentHandler)
 	server.HandleFunc("GET /payments-summary", handlers.PaymentSummaryHandler)
 	server.HandleFunc("GET /payments/", handlers.PaymentDetailsHandler)
+	server.HandleFunc("GET /processors/status", handler.ProcessorStatusHandler)
 
 	md := middleware.Logging(logger)(server)
 

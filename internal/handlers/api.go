@@ -19,12 +19,14 @@ import (
 var log = logger.GetLogger("[HANDLER]")
 
 type Handler struct {
-	publisher *nats.Publisher
+	publisher        *nats.Publisher
+	processorManager *config.ProcessorManager
 }
 
-func HandleHandler(p *nats.Publisher) *Handler {
+func HandleHandler(p *nats.Publisher, pm *config.ProcessorManager) *Handler {
 	return &Handler{
-		publisher: p,
+		publisher:        p,
+		processorManager: pm,
 	}
 }
 
@@ -41,7 +43,7 @@ func (h *Handler) PaymentHandler(w http.ResponseWriter, r *http.Request) {
 
 // este endpoint é só pra testes
 func PaymentDetailsHandler(w http.ResponseWriter, r *http.Request) {
-	HOST := healthcheck()
+	HOST := os.Getenv("PROCESSOR_DEFAULT_URL")
 
 	id := r.URL.Path[len("/payments/"):]
 
@@ -152,18 +154,14 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func healthcheck() string {
-	// TODO: implementar a validacao para escolher entre o default ou fallback
-	DEFAULT_HOST := os.Getenv("PROCESSOR_DEFAULT_URL")
-	resp, err := http.Get(DEFAULT_HOST + "/payments/service-health")
-	if err != nil {
-		logger.Errorf("error service-health %v \n", err)
+func (h *Handler) ProcessorStatusHandler(w http.ResponseWriter, r *http.Request) {
+	activeProcessor := h.processorManager.GetActiveProcessor()
+
+	response := map[string]interface{}{
+		"activeProcessor": activeProcessor,
+		"timestamp":       time.Now(),
 	}
 
-	bodyHealth, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.Errorf("error %v \n", err)
-	}
-	logger.Infof("resp %s", bodyHealth)
-	return DEFAULT_HOST
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

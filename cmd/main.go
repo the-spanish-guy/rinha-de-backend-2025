@@ -29,7 +29,7 @@ func main() {
 	// Esse sub.Subscribe() talvez pudesse um método dentro da pasta de handlers
 	sub.Subscribe()
 
-	routes := router.SetupRoutes(logger, pub)
+	routes := router.SetupRoutes(logger, pub, pm)
 	server := http.Server{
 		Addr:    "0.0.0.0:8080",
 		Handler: routes,
