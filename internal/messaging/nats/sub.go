@@ -73,9 +73,12 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 	}
 
 	payment.RequestedAt = time.Now()
+	client := &http.Client{
+		Timeout: 1500 * time.Millisecond,
+	}
 
 	request, _ := json.Marshal(payment)
-	_, errPayments := http.Post(activeHost+"/payments", "application/json", bytes.NewBuffer(request))
+	_, errPayments := client.Post(activeHost+"/payments", "application/json", bytes.NewBuffer(request))
 	if errPayments != nil {
 		log.Errorf("Error on POST /payments %s", errPayments)
 		// TODO: implementar retry

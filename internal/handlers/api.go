@@ -165,3 +165,8 @@ func (h *Handler) ProcessorStatusHandler(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
+
+func (h *Handler) PurgePayments(w http.ResponseWriter, r *http.Request) {
+	db.GetDB().Exec(context.Background(), "DELETE FROM payments")
+	w.WriteHeader(http.StatusOK)
+}
