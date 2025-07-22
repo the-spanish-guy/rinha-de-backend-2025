@@ -14,9 +14,9 @@ var (
 	processorConfig = &ProcessorConfig{
 		DefaultURL:          os.Getenv("PROCESSOR_DEFAULT_URL"),
 		FallbackURL:         os.Getenv("PROCESSOR_FALLBACK_URL"),
-		Timeout:             5,
-		HealthCheckInterval: 7,
-		CacheTTL:            7,
+		Timeout:             2,
+		HealthCheckInterval: 8,
+		CacheTTL:            8,
 	}
 )
 

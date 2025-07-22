@@ -57,7 +57,7 @@ func PaymentDetailsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error when trying read response body", http.StatusBadRequest)
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusOK)
 	w.Write(formattedResponse)
 }
 
@@ -150,7 +150,7 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 

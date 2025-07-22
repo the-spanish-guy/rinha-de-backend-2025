@@ -35,6 +35,8 @@ func main() {
 		Handler: routes,
 	}
 
+	defer server.Close()
+
 	logger.Infof("API listening at %s", server.Addr)
 	server.ListenAndServe()
 }
