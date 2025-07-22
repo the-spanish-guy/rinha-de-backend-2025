@@ -22,3 +22,19 @@ type PaymentsSummaryResponse struct {
 	Default  SummaryResponse `json:"default"`
 	Fallback SummaryResponse `json:"fallback"`
 }
+
+type ProcessorHealth struct {
+	URL          string    `json:"url"`
+	IsHealthy    bool      `json:"isHealthy"`
+	ResponseTime int64     `json:"responseTime"`
+	LastCheck    time.Time `json:"lastCheck"`
+	ErrorCount   int       `json:"errorCount"`
+	SuccessCount int       `json:"successCount"`
+}
+
+type ProcessorConfig struct {
+	DefaultURL  string `json:"defaultUrl"`
+	FallbackURL string `json:"fallbackUrl"`
+	MaxErrors   int    `json:"maxErrors"`
+	Timeout     int    `json:"timeout"`
+}
