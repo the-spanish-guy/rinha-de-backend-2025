@@ -5,8 +5,8 @@ CREATE UNLOGGED TABLE payments (
     correlation_id UUID NOT NULL,
     status VARCHAR(20),
     amount DECIMAL(10, 2) NOT NULL,
-    processor varchar,
-    requested_at TIMESTAMPTZ,
+    processor varchar NOT NULL,
+    requested_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -14,3 +14,6 @@ CREATE INDEX payments_status ON payments (status);
 CREATE INDEX payments_processor ON payments (processor);
 CREATE INDEX payments_requested_at ON payments (requested_at);
 CREATE INDEX payments_correlation_id ON payments (correlation_id);
+
+CREATE INDEX payments_summary ON payments (processor, requested_at, amount);
+CREATE INDEX payments_date_range ON payments (requested_at) WHERE requested_at IS NOT NULL;

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"rinha-de-backend-2025/internal/logger"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -31,6 +32,11 @@ func StartPG() error {
 	}
 
 	PGDB = poolconn
+	PGDB.Config().MaxConns = 25
+	PGDB.Config().MinConns = 5
+	PGDB.Config().MaxConnLifetime = 30 * time.Minute
+	PGDB.Config().MaxConnIdleTime = 15 * time.Minute
+	PGDB.Config().HealthCheckPeriod = 2 * time.Minute
 
 	dbLogger.Info("PG Connected successfully!")
 	return nil

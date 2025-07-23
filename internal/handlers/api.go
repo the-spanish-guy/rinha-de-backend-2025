@@ -95,7 +95,9 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		`
 		args = []interface{}{*from, *to}
 	} else {
-		query = baseQuery
+		query = baseQuery + `
+			WHERE p.requested_at > NOW() - INTERVAL '1 year'
+		`
 	}
 
 	query += `
@@ -111,7 +113,7 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.PGDB.Query(ctx, query, args...)
 
 	if err != nil {
-		log.Errorf("query execution failed: %w", err)
+		log.Errorf("query execution failed: %v", err)
 		http.Error(w, "query execution failed", http.StatusBadRequest)
 		return
 	}
