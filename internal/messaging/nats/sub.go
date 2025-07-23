@@ -82,9 +82,16 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 	}
 
 	request, _ := json.Marshal(payment)
-	_, errPayments := client.Post(activeHost+"/payments", "application/json", bytes.NewBuffer(request))
+	res, errPayments := client.Post(activeHost+"/payments", "application/json", bytes.NewBuffer(request))
 	if errPayments != nil {
 		log.Errorf("Error on POST /payments %s", errPayments)
+		// TODO: implementar retry
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		log.Errorf("Error on POST /payments(statusCode) %d", res.StatusCode)
 		// TODO: implementar retry
 		return
 	}
