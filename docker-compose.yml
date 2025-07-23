@@ -15,8 +15,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.15"
-          memory: "15MB"
+          cpus: "0.10"
+          memory: "10MB"
 
   go1: &go1
     build:
@@ -45,8 +45,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.40"
-          memory: "60MB"
+          cpus: "0.45"
+          memory: "70MB"
   go2:
     <<: *go1
     container_name: go2
@@ -61,8 +61,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.20"
-          memory: "80MB"
+          cpus: "0.25"
+          memory: "90MB"
 
   pg:
     image: postgres:17-alpine
@@ -86,8 +86,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.35"
-          memory: "135MB"
+          cpus: "0.25"
+          memory: "110MB"
 
 networks:
   payment-processor:
