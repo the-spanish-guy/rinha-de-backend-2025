@@ -2,10 +2,13 @@ package config
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"rinha-de-backend-2025/internal/db"
 	"rinha-de-backend-2025/internal/logger"
+	"rinha-de-backend-2025/internal/types"
 	"time"
 )
 
@@ -14,7 +17,7 @@ var (
 	processorConfig = &ProcessorConfig{
 		DefaultURL:          os.Getenv("PROCESSOR_DEFAULT_URL"),
 		FallbackURL:         os.Getenv("PROCESSOR_FALLBACK_URL"),
-		Timeout:             2,
+		Timeout:             5,
 		HealthCheckInterval: 8,
 		CacheTTL:            8,
 	}
@@ -35,6 +38,12 @@ type ProcessorManager struct {
 	lastCheck time.Time
 }
 
+type healthResult struct {
+	service string
+	data    []byte
+	err     error
+}
+
 func NewProcessorManager() *ProcessorManager {
 	return &ProcessorManager{
 		config:    processorConfig,
@@ -44,91 +53,101 @@ func NewProcessorManager() *ProcessorManager {
 	}
 }
 
-func (pm *ProcessorManager) GetActiveProcessor() string {
-	if cachedURL := pm.getCachedProcessor(); cachedURL != "" {
-		log.Debugf("Cached processor: %s", cachedURL)
-		pm.activeURL = cachedURL
-		return cachedURL
+func (pm *ProcessorManager) GetActiveProcessor() (string, error) {
+	var defaultPaylaod, fallbackPayload types.HealtchCheckResponse
+	if err := pm.getCachedProcessor("health:default", &defaultPaylaod); err != nil {
+		log.Errorf("an error occurred while decode host from redis")
+		return "", nil
+	}
+	if err := pm.getCachedProcessor("health:fallback", &fallbackPayload); err != nil {
+		log.Errorf("an error occurred while decode host from redis")
+		return "", nil
 	}
 
-	pm.updateActiveProcessor()
-	return pm.activeURL
+	var HOST = os.Getenv("PROCESSOR_DEFAULT_URL")
+	if defaultPaylaod.Failing || defaultPaylaod.MinResponseTime > fallbackPayload.MinResponseTime {
+		HOST = os.Getenv("PROCESSOR_FALLBACK_URL")
+	}
+
+	return HOST, nil
 }
 
-func (pm *ProcessorManager) getCachedProcessor() string {
+func (pm *ProcessorManager) getCachedProcessor(key string, result interface{}) error {
 	if db.DB == nil {
-		return ""
+		return fmt.Errorf("")
 	}
 
-	result, err := db.DB.Get(pm.ctx, "active_processor").Result()
+	jsonData, err := db.DB.Get(pm.ctx, key).Result()
 	if err != nil {
-		return ""
+		return err
 	}
 
-	return result
+	return json.Unmarshal([]byte(jsonData), result)
 }
 
-func (pm *ProcessorManager) cacheProcessor(url string) {
+func (pm *ProcessorManager) updatProcessorCache(key string, data []byte) {
 	if db.DB == nil {
 		return
 	}
 
-	err := db.DB.Set(pm.ctx, "active_processor", url, time.Duration(pm.config.CacheTTL)*time.Second).Err()
+	err := db.DB.Set(pm.ctx, key, data, time.Duration(pm.config.CacheTTL)*time.Second).Err()
 	if err != nil {
 		log.Errorf("Error saving processor to cache: %v", err)
 	}
 }
 
-func (pm *ProcessorManager) updateActiveProcessor() {
-	if pm.isProcessorHealthy(pm.config.DefaultURL) {
-		if pm.activeURL != pm.config.DefaultURL {
-			log.Info("Changing to default processor")
-		}
-		pm.activeURL = pm.config.DefaultURL
-		pm.lastCheck = time.Now()
-		pm.cacheProcessor(pm.activeURL)
-		return
-	}
-
-	if pm.isProcessorHealthy(pm.config.FallbackURL) {
-		if pm.activeURL != pm.config.FallbackURL {
-			log.Warning("Changing to fallback processor")
-		}
-		pm.activeURL = pm.config.FallbackURL
-		pm.lastCheck = time.Now()
-		pm.cacheProcessor(pm.activeURL)
-		return
-	}
-
-	if pm.activeURL == "" {
-		pm.activeURL = pm.config.DefaultURL
-		log.Warning("No healthy processor, using default as last resort")
-	}
-	pm.lastCheck = time.Now()
-	pm.cacheProcessor(pm.activeURL)
-	log.Infof("Health check END - Selected: %s", pm.activeURL)
-}
-
-func (pm *ProcessorManager) isProcessorHealthy(url string) bool {
+func (pm *ProcessorManager) healthCheck() {
 	client := &http.Client{
 		Timeout: time.Duration(pm.config.Timeout) * time.Second,
 	}
+	defaultURL := os.Getenv("PROCESSOR_DEFAULT_URL")
+	fallbackURL := os.Getenv("PROCESSOR_FALLBACK_URL")
 
-	// validar os campos failing e minResponseTime?
-	resp, err := client.Get(url + "/payments/service-health")
+	results := make(chan healthResult, 2)
+
+	go pm.checkServiceHealth(client, defaultURL, "default", results)
+	go pm.checkServiceHealth(client, fallbackURL, "fallback", results)
+
+	for i := 0; i < 2; i++ {
+		result := <-results
+		if result.err != nil {
+			log.Errorf("Health check failed for %s: %v", result.service, result.err)
+			pm.updatProcessorCache(fmt.Sprintf("health:%s:error", result.service), []byte(`{"status":"error"}`))
+		} else {
+			pm.updatProcessorCache(fmt.Sprintf("health:%s", result.service), result.data)
+		}
+	}
+}
+
+func (pm *ProcessorManager) checkServiceHealth(client *http.Client, baseURL, serviceName string, results chan<- healthResult) {
+	response, err := client.Get(baseURL + "/payments/service-health")
 	if err != nil {
-		log.Errorf("Error checking health of processor %s: %v", url, err)
-		return false
+		results <- healthResult{service: serviceName, err: err}
+		return
 	}
-	defer resp.Body.Close()
+	defer response.Body.Close()
 
-	isHealthy := resp.StatusCode == 200
-
-	if !isHealthy {
-		log.Warningf("Processor %s is not healthy: status=%d", url, resp.StatusCode)
+	if response.StatusCode != http.StatusOK {
+		results <- healthResult{
+			service: serviceName,
+			err:     fmt.Errorf("HTTP %d", response.StatusCode),
+		}
+		return
 	}
 
-	return isHealthy
+	var payload types.HealtchCheckResponse
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		results <- healthResult{service: serviceName, err: err}
+		return
+	}
+
+	data, err := json.Marshal(&payload)
+	if err != nil {
+		results <- healthResult{service: serviceName, err: err}
+		return
+	}
+
+	results <- healthResult{service: serviceName, data: data}
 }
 
 func (pm *ProcessorManager) StartHealthCheck() {
@@ -140,7 +159,7 @@ func (pm *ProcessorManager) StartHealthCheck() {
 		for {
 			select {
 			case <-ticker.C:
-				pm.updateActiveProcessor()
+				pm.healthCheck()
 				log.Infof("Active processor: %s", pm.activeURL)
 			case <-pm.ctx.Done():
 				log.Info("Health check loop stopped")

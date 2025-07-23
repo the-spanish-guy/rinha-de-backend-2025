@@ -113,6 +113,7 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Errorf("query execution failed: %w", err)
 		http.Error(w, "query execution failed", http.StatusBadRequest)
+		return
 	}
 	defer rows.Close()
 
@@ -155,7 +156,7 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ProcessorStatusHandler(w http.ResponseWriter, r *http.Request) {
-	activeProcessor := h.processorManager.GetActiveProcessor()
+	activeProcessor, _ := h.processorManager.GetActiveProcessor()
 
 	response := map[string]interface{}{
 		"activeProcessor": activeProcessor,

@@ -62,7 +62,11 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 	log.Infof("Formatted message: %s", message.Content)
 
 	pm := config.NewProcessorManager()
-	activeHost := pm.GetActiveProcessor()
+	activeHost, err := pm.GetActiveProcessor()
+	if err != nil {
+		log.Errorf("An error occurred while get host to request")
+		return
+	}
 	processorType := getProcessorType(activeHost)
 
 	payment := types.PaymentsRequest{}
@@ -82,6 +86,7 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 	if errPayments != nil {
 		log.Errorf("Error on POST /payments %s", errPayments)
 		// TODO: implementar retry
+		return
 	}
 
 	paymentDB := types.Payments{
