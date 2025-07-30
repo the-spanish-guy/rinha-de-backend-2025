@@ -67,6 +67,12 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 		log.Errorf("An error occurred while get host to request")
 		return
 	}
+
+	if strings.TrimSpace(activeHost) == "" {
+		log.Errorf("ActiveHost is empty %s", activeHost)
+		return
+	}
+
 	processorType := getProcessorType(activeHost)
 
 	payment := types.PaymentsRequest{}
@@ -78,7 +84,13 @@ func (s *Subscriber) handleMessage(msg *nats.Msg) {
 
 	payment.RequestedAt = time.Now()
 	client := &http.Client{
-		Timeout: 1500 * time.Millisecond,
+		Timeout: 2500 * time.Millisecond,
+		Transport: &http.Transport{
+			MaxIdleConns:        50,
+			MaxIdleConnsPerHost: 50,
+			IdleConnTimeout:     60 * time.Second,
+			DisableCompression:  true,
+		},
 	}
 
 	request, _ := json.Marshal(payment)

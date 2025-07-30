@@ -95,9 +95,7 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		`
 		args = []interface{}{*from, *to}
 	} else {
-		query = baseQuery + `
-			WHERE p.requested_at > NOW() - INTERVAL '1 year'
-		`
+		query = baseQuery
 	}
 
 	query += `
@@ -153,6 +151,7 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
