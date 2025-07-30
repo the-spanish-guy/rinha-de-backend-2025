@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE UNLOGGED TABLE payments (
     id UUID NOT NULL DEFAULT uuid_generate_v4()  PRIMARY KEY,
-    correlation_id UUID NOT NULL,
+    correlation_id VARCHAR(255) NOT NULL UNIQUE,
     status VARCHAR(20),
     amount DECIMAL(10, 2) NOT NULL,
     processor varchar NOT NULL,
