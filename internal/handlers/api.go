@@ -113,9 +113,6 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 			p.processor
 	`
 
-	log.Debugf("Query: %v", query)
-	log.Debugf("Args: %v", args)
-
 	rows, err := db.PGDB.Query(ctx, query, args...)
 
 	if err != nil {
@@ -127,12 +124,12 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := types.PaymentsSummaryResponse{
 		Default: types.SummaryResponse{
-			TotalRequest: "0",
-			TotalAmount:  "0.00",
+			TotalRequest: 0,
+			TotalAmount:  0.0,
 		},
 		Fallback: types.SummaryResponse{
-			TotalRequest: "0",
-			TotalAmount:  "0.00",
+			TotalRequest: 0,
+			TotalAmount:  0.0,
 		},
 	}
 	for rows.Next() {
@@ -147,8 +144,8 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		summary := types.SummaryResponse{
-			TotalRequest: fmt.Sprintf("%d", totalRequest),
-			TotalAmount:  fmt.Sprintf("%.2f", totalAmount),
+			TotalRequest: int(totalRequest),
+			TotalAmount:  totalAmount,
 		}
 
 		switch processor {

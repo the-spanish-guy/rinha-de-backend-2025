@@ -14,8 +14,8 @@ type PaymentsRequest struct {
 }
 
 type SummaryResponse struct {
-	TotalRequest string `json:"totalRequests"`
-	TotalAmount  string `json:"totalAmount"`
+	TotalRequest int     `json:"totalRequests"`
+	TotalAmount  float64 `json:"totalAmount"`
 }
 
 type PaymentsSummaryResponse struct {
