@@ -6,13 +6,12 @@ import (
 	"rinha-de-backend-2025/internal/handlers"
 	"rinha-de-backend-2025/internal/handlers/middleware"
 	"rinha-de-backend-2025/internal/logger"
-	"rinha-de-backend-2025/internal/messaging/nats"
 )
 
-func SetupRoutes(logger *logger.Logger, pub *nats.Publisher, processorManager *config.ProcessorManager) http.Handler {
+func SetupRoutes(logger *logger.Logger, processorManager *config.ProcessorManager) http.Handler {
 	server := http.NewServeMux()
 
-	handler := handlers.HandleHandler(pub, processorManager)
+	handler := handlers.HandleHandler(processorManager)
 
 	server.HandleFunc("POST /payments", handler.PaymentHandler)
 	server.HandleFunc("GET /payments-summary", handlers.PaymentSummaryHandler)

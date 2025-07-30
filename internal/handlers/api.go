@@ -19,13 +19,11 @@ import (
 var log = logger.GetLogger("[HANDLER]")
 
 type Handler struct {
-	publisher        *nats.Publisher
 	processorManager *config.ProcessorManager
 }
 
-func HandleHandler(p *nats.Publisher, pm *config.ProcessorManager) *Handler {
+func HandleHandler(pm *config.ProcessorManager) *Handler {
 	return &Handler{
-		publisher:        p,
 		processorManager: pm,
 	}
 }
