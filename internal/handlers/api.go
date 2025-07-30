@@ -92,17 +92,17 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 			sum(p.amount) as total_amount
 		from
 			payments p
+			WHERE p.status = 'SETTLED'
 		`
 
 	if from != nil && to != nil {
 		query = baseQuery + `
-			WHERE
-				p.requested_at between $1 and $2
+			AND p.requested_at between $1 and $2
 		`
 		args = []interface{}{*from, *to}
 	} else {
 		query = baseQuery + `
-			WHERE p.requested_at > NOW() - INTERVAL '1 year'
+			AND p.requested_at > NOW() - INTERVAL '1 year'
 		`
 	}
 
