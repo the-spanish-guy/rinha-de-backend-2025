@@ -11,8 +11,8 @@ import (
 	"rinha-de-backend-2025/internal/db"
 	"rinha-de-backend-2025/internal/helpers"
 	"rinha-de-backend-2025/internal/logger"
-	"rinha-de-backend-2025/internal/messaging/nats"
 	"rinha-de-backend-2025/internal/types"
+	"rinha-de-backend-2025/internal/workers"
 	"time"
 )
 
@@ -34,7 +34,15 @@ func (h *Handler) PaymentHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error when trying read Body", http.StatusBadRequest)
 	}
 
-	h.publisher.PublishMessage(types.NewMessage(string(readBody)))
+	// Parse request para Worker Pool
+	var payment types.PaymentsRequest
+	if err := json.Unmarshal(readBody, &payment); err != nil {
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+		return
+	}
+
+	// Enviar para worker pool
+	workers.GlobalWorkerPool.AddJob(payment)
 
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -151,6 +159,7 @@ func PaymentSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }

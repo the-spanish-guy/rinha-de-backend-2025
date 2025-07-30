@@ -5,8 +5,8 @@ import (
 	"rinha-de-backend-2025/internal/config"
 	"rinha-de-backend-2025/internal/db"
 	"rinha-de-backend-2025/internal/logger"
-	"rinha-de-backend-2025/internal/messaging"
 	"rinha-de-backend-2025/internal/router"
+	"rinha-de-backend-2025/internal/workers"
 )
 
 func main() {
@@ -25,11 +25,11 @@ func main() {
 	pm := config.NewProcessorManager()
 	pm.StartHealthCheck()
 
-	pub, sub := messaging.SetupMessaging()
-	// Esse sub.Subscribe() talvez pudesse um método dentro da pasta de handlers
-	sub.Subscribe()
+	// Initialize Worker Pool
+	workers.InitGlobalWorkerPool()
+	defer workers.StopGlobalWorkerPool()
 
-	routes := router.SetupRoutes(logger, pub, pm)
+	routes := router.SetupRoutes(logger, pm)
 	server := http.Server{
 		Addr:    "0.0.0.0:8080",
 		Handler: routes,
